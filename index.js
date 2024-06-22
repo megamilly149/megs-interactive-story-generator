@@ -1,9 +1,9 @@
 "use strict";
 require("dotenv").config();
-const { Client, Collection, Events, GatewayIntentBits } = require("discord.js");
+const { Client, GatewayIntentBits, Events, Collection } = require("discord.js");
+const { StoryEngine } = require("./lib/storyEngine.js");
 const fs = require("node:fs");
 
-// Create a new client instance
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -16,6 +16,8 @@ const client = new Client({
 const commandFiles = fs
   .readdirSync("./commands")
   .filter((file) => file.endsWith(".js"));
+// StoryEngine to manage states
+const storyEngine = new StoryEngine();
 
 // Initialize client commands as new collection
 client.commands = new Collection();
@@ -26,26 +28,17 @@ for (const file of commandFiles) {
   client.commands.set(command.name, command);
 }
 
-// Listen to the event that signals bot is ready to start working
-client.on("ready", () => console.log(`logged in as ${client.user.tag}`));
+client.on("ready", () => console.log(`Logged in as ${client.user.tag}`));
 
-// Listen to the event that signals a message has been created to detect commands
-client.on(Events.MessageCreate, (message) => {
+// Event handling
+client.on(Events.MessageCreate, (interaction) => {
   const prefix = "!";
 
-  if (!message.content.startsWith(prefix)) return;
+  if (!interaction.content.startsWith(prefix)) return;
 
-  const args = message.content.slice(prefix.length).trim().split(/ +/);
-  const command = args.shift().toLowerCase();
-
-  if (!client.commands.has(command)) return;
-
-  try {
-    client.commands.get(command).execute(message, args);
-  } catch (error) {
-    console.error(error);
-    message.reply("There was an error trying to execute that command!");
-  }
+  const commandName = interaction.content.slice(prefix.length).trim().toLowerCase();
+  
+  storyEngine.handleCommand(commandName, interaction);
 });
 
 // Login to the server using bot token
